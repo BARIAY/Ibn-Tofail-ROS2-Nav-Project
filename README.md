@@ -39,23 +39,25 @@ git clone [https://github.com/BARIAY/Ibn-Tofail-ROS2-Nav-Project.git](https://gi
 cd ~/ros2_ws
 rosdep update
 rosdep install --from-paths src --ignore-src -r -y
-
+```
 ## 5. Compilation et Lancement
 ### Build
 ```Bash
 cd ~/ros2_ws
 colcon build
 source install/setup.bash
+```
 
 ### Exécution
 Lancer la simulation (Gazebo) :
 ```Bash
 gz sim diff_drive.sdf
+```
 
 Lancer le nœud de monitoring :
 ```Bash
 ros2 run robot_monitor monitor_node
-
+```
 ## 6. Livrables et Calendrier 
 
 
