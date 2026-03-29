@@ -57,16 +57,4 @@ Lancer le nœud de monitoring :
 ```Bash
 ros2 run robot_monitor monitor_node
 ```
-## 6. Livrables et Calendrier 
 
-
-Project Proposal : Document de 1-2 pages détaillant les objectifs.
-
-
-GitHub Repository : Code source complet et historique des commits.
-
-
-Final Report : Rapport détaillé de 10-20 pages sur l'efficacité du modèle ML et les performances temps réel.
-
-
-Demo & Presentation : Présentation de 10-15 minutes incluant une démonstration.
