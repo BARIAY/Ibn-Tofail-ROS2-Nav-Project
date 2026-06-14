@@ -44,22 +44,25 @@ rtr_ws/                                  # Racine du workspace ROS 2
         │   └── sim.launch.py            # Allumage global (Robot + Gazebo + Rviz2)
         └── worlds/
             └── rtr_world.sdf            # Environnement 3D (Murs, bacs, déchets)
+```
 
 ## Installation (Prérequis)
 OS : Ubuntu 24.04 LTS (Noble Numbat)
 ROS Version : ROS 2 Jazzy Jalisco
 Simulateur : Gazebo Harmonic
-
+```
 pip3 install ultralytics opencv-python cv-bridge --user --break-system-packages
-
+```
 ## Exécution du Système
 
 ## 1. Lancement de la Simulation
+```
 cd ~/rtr_ws
 source install/setup.bash
 ros2 launch rtr_simulation sim.launch.py
-
+```
 ## 2. Activation du Pont de Communication (Bridge)
+```
 ros2 run ros_gz_bridge parameter_bridge \
 /clock@rosgraph_msgs/msg/Clock[ignition.msgs.Clock \
 /scan@sensor_msgs/msg/LaserScan[ignition.msgs.LaserScan \
@@ -68,15 +71,20 @@ ros2 run ros_gz_bridge parameter_bridge \
 /cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist \
 /camera/image_raw@sensor_msgs/msg/Image[gz.msgs.Image \
 --ros-args -r /model/turtlebot3/odometry:=/odom -r /model/turtlebot3/tf:=/tf
-
+```
 ## 3. Démarrage de la Stack de Navigation (Nav2)
+```
 ros2 launch nav2_bringup bringup_launch.py use_sim_time:=true map:=/home/hajar/rtr_ws/ma_carte.yaml
-
+```
 ## 4. Initialisation de la Pose du Robot (AMCL)
+```
 ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped "{header: {frame_id: 'map'}, pose: {pose: {position: {x: -4.0, y: 0.3, z: 0.0}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}"
-
+```
 ## 5. Lancement du Nœud de Vision IA
+```
 python3 ~/rtr_ws/src/rtr_vision/rtr_vision/vision_classifier.py
-
+```
 ## 6. Activation du Cerveau Autonome
+```
 python3 ~/rtr_ws/cerveau_autonome.py
+```
