@@ -32,7 +32,7 @@ rtr_ws/                                  # Racine du workspace ROS 2
 │
 ├── best.pt                              # Poids du modèle YOLOv8 ré-entraîné (PyTorch)
 ├── cerveau_autonome.py                  # Script principal : Vision, FSM et Routage
-├── dataset_collector.py                 # Utilitaire de collecte de données
+├── photographe_robot.py                 # Utilitaire de collecte de données
 ├── ma_carte.yaml                        # Configuration de la carte statique 2D
 ├── ma_carte.pgm                         # Image 2D de la baie de tri
 │
