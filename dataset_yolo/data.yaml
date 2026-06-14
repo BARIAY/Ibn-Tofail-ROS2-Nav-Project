@@ -1,0 +1,13 @@
+train: train/images
+val: valid/images
+test: test/images
+
+nc: 8
+names: ['boite_lettres', 'bol', 'bouteille_verre', 'canette', 'carton', 'cone_chantier', 'extincteur', 'gobelet']
+
+roboflow:
+  workspace: hajars-workspace-t4lof
+  project: rtr_waste_detection
+  version: dataset
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/hajars-workspace-t4lof/rtr_waste_detection/dataset/dataset

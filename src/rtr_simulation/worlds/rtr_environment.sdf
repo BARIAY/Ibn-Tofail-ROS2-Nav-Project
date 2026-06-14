@@ -1,0 +1,449 @@
+<?xml version="1.0" ?>
+<!--
+  ╔══════════════════════════════════════════════════════════════════╗
+  ║         RTR WORLD v2.0 - Robot de Tri des Déchets               ║
+  ║                                                                  ║
+  ║  Améliorations vs v1 :                                           ║
+  ║  • Enceinte fermée (murs + ouverture d'entrée côté ouest)        ║
+  ║  • Station de tri avec 4 bacs colorés (plastique/verre/          ║
+  ║    papier/organique) alignés le long du mur est                  ║
+  ║  • Zone de dépôt robot (spawn area) marquée au sol               ║
+  ║  • Déchets variés et distribués de façon réaliste (~10 objets)   ║
+  ║  • Obstacles mobiles (cônes) + fixes (meubles)                   ║
+  ║  • Éclairage amélioré : soleil directionnel + fill point light   ║
+  ║  • Rendu ogre2 + scène ambient/background                        ║
+  ╚══════════════════════════════════════════════════════════════════╝
+
+  Layout (vue de dessus, 10 m × 10 m) :
+  +-----------[entrée]----------+
+  |  C1                  [🟡P] |
+  |      [🟤T]     [B1]  [🟢V] |
+  |  [G1]   [G2]         [🔵K] |
+  |      [C2]   [B2]     [🟫O] |
+  |  [E]              C3       |
+  +-----------------------------+
+  Légende :  C=canette, B=bouteille, G=gobelet, T=carton, E=extincteur
+             🟡P=bac Plastique  🟢V=bac Verre  🔵K=bac Karto/Papier  🟫O=bac Organique
+-->
+
+<sdf version="1.9">
+  <world name="rtr_world">
+
+    <!-- ====================================================== -->
+    <!-- PHYSICS                                                 -->
+    <!-- ====================================================== -->
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.004</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+
+    <!-- ====================================================== -->
+    <!-- PLUGINS                                                 -->
+    <!-- ====================================================== -->
+    <plugin filename="gz-sim-physics-system"         name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system"   name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-sensors-system"         name="gz::sim::systems::Sensors">
+      <!-- ogre2 : meilleur rendu, requis pour les caméras de profondeur -->
+      <render_engine>ogre2</render_engine>
+    </plugin>
+
+    <!-- ====================================================== -->
+    <!-- SCÈNE (ciel, ambiance)                                  -->
+    <!-- ====================================================== -->
+    <scene>
+      <ambient>0.45 0.45 0.45 1</ambient>
+      <background>0.65 0.78 0.92 1</background>
+      <shadows>true</shadows>
+    </scene>
+
+    <!-- ====================================================== -->
+    <!-- ÉCLAIRAGE                                               -->
+    <!-- ====================================================== -->
+
+    <!-- Lumière principale : soleil -->
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.95 0.92 0.80 1</diffuse>
+      <specular>0.30 0.30 0.30 1</specular>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <!-- Lumière de remplissage : atténue les zones d'ombre (utile pour caméra embarquée) -->
+    <light type="point" name="fill_light">
+      <pose>0 0 4 0 0 0</pose>
+      <diffuse>0.35 0.38 0.45 1</diffuse>
+      <specular>0.05 0.05 0.05 1</specular>
+      <attenuation>
+        <range>12</range>
+        <constant>0.5</constant>
+        <linear>0.05</linear>
+        <quadratic>0.01</quadratic>
+      </attenuation>
+      <cast_shadows>false</cast_shadows>
+    </light>
+
+    <!-- Spot sur la station de tri (aide le robot à voir les bacs) -->
+    <light type="spot" name="spot_station">
+      <pose>4.0 0.5 3.5 0 1.0 3.14</pose>
+      <diffuse>0.9 0.9 1.0 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation>
+        <range>8</range>
+        <constant>0.3</constant>
+        <linear>0.02</linear>
+        <quadratic>0.01</quadratic>
+      </attenuation>
+      <spot>
+        <inner_angle>0.5</inner_angle>
+        <outer_angle>1.0</outer_angle>
+        <falloff>1.5</falloff>
+      </spot>
+      <cast_shadows>false</cast_shadows>
+    </light>
+
+    <!-- ====================================================== -->
+    <!-- SOL                                                     -->
+    <!-- ====================================================== -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry><plane><normal>0 0 1</normal><size>20 20</size></plane></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><plane><normal>0 0 1</normal><size>20 20</size></plane></geometry>
+          <material>
+            <ambient>0.55 0.55 0.55 1</ambient>
+            <diffuse>0.55 0.55 0.55 1</diffuse>
+            <specular>0.05 0.05 0.05 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Marquage au sol : zone de spawn/départ robot (bande verte) -->
+    <model name="zone_depart">
+      <static>true</static>
+      <pose>-4.0 0.0 0.002 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>1.5 2.0 0.001</size></box></geometry>
+          <material>
+            <ambient>0.1 0.8 0.2 0.7</ambient>
+            <diffuse>0.1 0.8 0.2 0.7</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ====================================================== -->
+    <!-- MURS : enceinte 10 m × 10 m                            -->
+    <!-- Entrée côté ouest (ouverture centrale de 3 m)          -->
+    <!-- ====================================================== -->
+
+    <!-- Mur nord -->
+    <model name="mur_nord">
+      <static>true</static>
+      <pose>0 5 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>10 0.15 1</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>10 0.15 1</size></box></geometry>
+          <material><ambient>0.80 0.78 0.72 1</ambient><diffuse>0.80 0.78 0.72 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Mur sud -->
+    <model name="mur_sud">
+      <static>true</static>
+      <pose>0 -5 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>10 0.15 1</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>10 0.15 1</size></box></geometry>
+          <material><ambient>0.80 0.78 0.72 1</ambient><diffuse>0.80 0.78 0.72 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Mur est (plein, derrière les bacs) -->
+    <model name="mur_est">
+      <static>true</static>
+      <pose>5 0 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.15 10 1</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.15 10 1</size></box></geometry>
+          <material><ambient>0.80 0.78 0.72 1</ambient><diffuse>0.80 0.78 0.72 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Mur ouest (nord) : de y=5 à y=1.5 -->
+    <model name="mur_ouest_nord">
+      <static>true</static>
+      <pose>-5 3.25 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.15 3.5 1</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.15 3.5 1</size></box></geometry>
+          <material><ambient>0.80 0.78 0.72 1</ambient><diffuse>0.80 0.78 0.72 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Mur ouest (sud) : de y=-1.5 à y=-5 -->
+    <model name="mur_ouest_sud">
+      <static>true</static>
+      <pose>-5 -3.25 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.15 3.5 1</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.15 3.5 1</size></box></geometry>
+          <material><ambient>0.80 0.78 0.72 1</ambient><diffuse>0.80 0.78 0.72 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ====================================================== -->
+    <!-- STATION DE TRI                                          -->
+    <!-- 4 bacs contre le mur est, espacés de 2 m               -->
+    <!-- Couleurs normalisées UE :                               -->
+    <!--   Jaune  = plastique/métal                              -->
+    <!--   Vert   = verre                                        -->
+    <!--   Bleu   = papier/carton                                -->
+    <!--   Marron = déchets organiques                           -->
+    <!-- ====================================================== -->
+
+    <!-- Bac 1 : Plastique / Métal (jaune) -->
+    <model name="bac_plastique">
+      <static>true</static>
+      <pose>4.3 3.5 0.30 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.55 0.55 0.60</size></box></geometry>
+        </collision>
+        <visual name="corps">
+          <geometry><box><size>0.55 0.55 0.60</size></box></geometry>
+          <material>
+            <ambient>1.00 0.78 0.00 1</ambient>
+            <diffuse>1.00 0.78 0.00 1</diffuse>
+            <specular>0.30 0.28 0.05 1</specular>
+          </material>
+        </visual>
+        <!-- Couvercle légèrement plus sombre -->
+        <visual name="couvercle">
+          <pose>0 0 0.32 0 0 0</pose>
+          <geometry><box><size>0.57 0.57 0.04</size></box></geometry>
+          <material>
+            <ambient>0.80 0.60 0.00 1</ambient>
+            <diffuse>0.80 0.60 0.00 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Bac 2 : Verre (vert) -->
+    <model name="bac_verre">
+      <static>true</static>
+      <pose>4.3 1.5 0.30 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.55 0.55 0.60</size></box></geometry>
+        </collision>
+        <visual name="corps">
+          <geometry><box><size>0.55 0.55 0.60</size></box></geometry>
+          <material>
+            <ambient>0.10 0.68 0.18 1</ambient>
+            <diffuse>0.10 0.68 0.18 1</diffuse>
+            <specular>0.05 0.30 0.10 1</specular>
+          </material>
+        </visual>
+        <visual name="couvercle">
+          <pose>0 0 0.32 0 0 0</pose>
+          <geometry><box><size>0.57 0.57 0.04</size></box></geometry>
+          <material>
+            <ambient>0.06 0.45 0.12 1</ambient>
+            <diffuse>0.06 0.45 0.12 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Bac 3 : Papier / Carton (bleu) -->
+    <model name="bac_papier">
+      <static>true</static>
+      <pose>4.3 -0.5 0.30 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.55 0.55 0.60</size></box></geometry>
+        </collision>
+        <visual name="corps">
+          <geometry><box><size>0.55 0.55 0.60</size></box></geometry>
+          <material>
+            <ambient>0.12 0.35 0.90 1</ambient>
+            <diffuse>0.12 0.35 0.90 1</diffuse>
+            <specular>0.05 0.10 0.30 1</specular>
+          </material>
+        </visual>
+        <visual name="couvercle">
+          <pose>0 0 0.32 0 0 0</pose>
+          <geometry><box><size>0.57 0.57 0.04</size></box></geometry>
+          <material>
+            <ambient>0.08 0.22 0.60 1</ambient>
+            <diffuse>0.08 0.22 0.60 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Bac 4 : Déchets organiques (marron) -->
+    <model name="bac_organique">
+      <static>true</static>
+      <pose>4.3 -2.5 0.30 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.55 0.55 0.60</size></box></geometry>
+        </collision>
+        <visual name="corps">
+          <geometry><box><size>0.55 0.55 0.60</size></box></geometry>
+          <material>
+            <ambient>0.50 0.28 0.08 1</ambient>
+            <diffuse>0.50 0.28 0.08 1</diffuse>
+            <specular>0.10 0.06 0.02 1</specular>
+          </material>
+        </visual>
+        <visual name="couvercle">
+          <pose>0 0 0.32 0 0 0</pose>
+          <geometry><box><size>0.57 0.57 0.04</size></box></geometry>
+          <material>
+            <ambient>0.32 0.18 0.05 1</ambient>
+            <diffuse>0.32 0.18 0.05 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ====================================================== -->
+    <!-- DÉCHETS PLASTIQUE / MÉTAL                               -->
+    <!--   → bac cible : bac_plastique (jaune)                   -->
+    <!-- ====================================================== -->
+
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Coke Can</uri>
+      <name>canette_1</name>
+      <pose>1.5  0.3  0 0 0  0.52</pose>
+    </include>
+
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Coke Can</uri>
+      <name>canette_2</name>
+      <pose>-1.2  2.1  0 0 0  2.00</pose>
+    </include>
+
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Plastic Cup</uri>
+      <name>gobelet_1</name>
+      <pose>0.8  -1.5  0 0 0  0.00</pose>
+    </include>
+
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Plastic Cup</uri>
+      <name>gobelet_2</name>
+      <pose>-2.0  0.5  0 0 0  1.20</pose>
+    </include>
+
+    <!-- ====================================================== -->
+    <!-- DÉCHETS VERRE                                           -->
+    <!--   → bac cible : bac_verre (vert)                        -->
+    <!-- ====================================================== -->
+
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Beer</uri>
+      <name>bouteille_1</name>
+      <pose>2.0  0.5  0 0 0  0.00</pose>
+    </include>
+
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Beer</uri>
+      <name>bouteille_2</name>
+      <pose>-0.5  -2.5  0 0 0  0.80</pose>
+    </include>
+
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Bowl</uri>
+      <name>bol_verre</name>
+      <pose>1.2  0.1  0 0 0  0.00</pose>
+    </include>
+
+    <!-- ====================================================== -->
+    <!-- DÉCHETS PAPIER / CARTON                                 -->
+    <!--   → bac cible : bac_papier (bleu)                       -->
+    <!-- ====================================================== -->
+
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Cardboard Box</uri>
+      <name>carton_1</name>
+      <pose>1.5  -0.3  0 0 0  0.30</pose>
+    </include>
+
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Cardboard Box</uri>
+      <name>carton_2</name>
+      <pose>-1.8   1.4  0 0 0  1.00</pose>
+    </include>
+
+    <!-- ====================================================== -->
+    <!-- OBSTACLES FIXES (non-déchets, à éviter)                 -->
+    <!-- ====================================================== -->
+
+    <!-- Cônes de chantier -->
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Construction Cone</uri>
+      <name>cone_1</name>
+      <pose>0.0   1.8  0 0 0 0</pose>
+    </include>
+
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Construction Cone</uri>
+      <name>cone_2</name>
+      <pose>-2.5  -1.2  0 0 0 0</pose>
+    </include>
+
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Construction Cone</uri>
+      <name>cone_3</name>
+      <pose>2.2  -2.8  0 0 0 0</pose>
+    </include>
+
+    <!-- Extincteur (obstacle haut, difficilement contournable) -->
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Fire Extinguisher</uri>
+      <name>extincteur_1</name>
+      <pose>-3.0  -3.5  0 0 0 0</pose>
+    </include>
+
+    <!-- Boîte aux lettres (obstacle large) -->
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Mailbox</uri>
+      <name>boite_lettres</name>
+      <pose>1.0  3.5  0 0 0  1.5708</pose>
+    </include>
+
+    
+
+  </world>
+</sdf>
